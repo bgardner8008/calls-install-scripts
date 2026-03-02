@@ -163,6 +163,11 @@ setup_user() {
     else
         echo "  WARNING: docker group not found — ensure Docker is installed before starting the service" | tee -a $LOG_FILE
     fi
+
+    # Create log directory owned by the service user
+    mkdir -p /var/log/calls-offloader
+    chown "$SERVICE_USER:$SERVICE_USER" /var/log/calls-offloader
+    echo "  Created log directory /var/log/calls-offloader" | tee -a $LOG_FILE
 }
 
 install_binary() {
@@ -187,6 +192,22 @@ Environment=API_HTTP_LISTENADDRESS=:$PORT"
     if [ -n "$IMAGE_REGISTRY" ]; then
         env_lines="$env_lines
 Environment=JOBS_IMAGEREGISTRY=$IMAGE_REGISTRY"
+    fi
+
+    # Set absolute log path — the default is relative and the service user can't
+    # write to the root filesystem working directory.
+    env_lines="$env_lines
+Environment=LOGGER_FILELOCATION=/var/log/calls-offloader/calls-offloader.log"
+
+    # calls-offloader is built against Docker SDK v20.10.x (API 1.41). Newer Docker
+    # daemons may require a higher minimum API version. Detect this now and set
+    # DOCKER_API_VERSION so the service starts successfully.
+    local docker_min_api
+    docker_min_api=$(docker version 2>&1 | grep -oE 'Minimum supported API version is [0-9]+\.[0-9]+' | grep -oE '[0-9]+\.[0-9]+$' || true)
+    if [ -n "$docker_min_api" ]; then
+        echo "  Docker API version mismatch detected: setting DOCKER_API_VERSION=$docker_min_api" | tee -a $LOG_FILE
+        env_lines="$env_lines
+Environment=DOCKER_API_VERSION=$docker_min_api"
     fi
 
     cat > "$SERVICE_FILE" << EOF

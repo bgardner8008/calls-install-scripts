@@ -24,7 +24,8 @@ usage() {
     echo "  --recorder VERSION     Version of mattermost/calls-recorder image (e.g., v0.8.8)"
     echo "  --transcriber VERSION  Version of mattermost/calls-transcriber image (e.g., v0.7.1)"
     echo "  --offloader VERSION    Version of calls-offloader binary to download (e.g., v0.9.4)"
-    echo "  --arch amd64|arm64     CPU architecture for offloader binary (default: amd64)"
+    echo "  --arch amd64|arm64     Target CPU architecture: controls offloader binary and Docker image"
+    echo "                         platform (default: amd64)"
     echo ""
     echo "Examples:"
     echo "  $0 --recorder v0.8.8 --transcriber v0.7.1 --offloader v0.9.4"
@@ -102,15 +103,15 @@ REGISTRY_PORT="${REGISTRY_PORT:-5000}"
 
 LOG_FILE=/tmp/air-gap-registry-setup.log
 
-echo "Air-Gap Bundle Preparation for Mattermost Calls" | tee $LOG_FILE
+echo "Air-Gap Bundle Preparation for Mattermost Calls Offloader" | tee $LOG_FILE
 if [ -n "$CALLS_RECORDER_VERSION" ]; then
-    echo "  Recorder version:    $CALLS_RECORDER_VERSION" | tee -a $LOG_FILE
+    echo "  Recorder version:    $CALLS_RECORDER_VERSION (linux/$OFFLOADER_ARCH)" | tee -a $LOG_FILE
 fi
 if [ -n "$CALLS_TRANSCRIBER_VERSION" ]; then
-    echo "  Transcriber version: $CALLS_TRANSCRIBER_VERSION" | tee -a $LOG_FILE
+    echo "  Transcriber version: $CALLS_TRANSCRIBER_VERSION (linux/$OFFLOADER_ARCH)" | tee -a $LOG_FILE
 fi
 if [ -n "$CALLS_OFFLOADER_VERSION" ]; then
-    echo "  Offloader version:   $CALLS_OFFLOADER_VERSION ($OFFLOADER_ARCH)" | tee -a $LOG_FILE
+    echo "  Offloader version:   $CALLS_OFFLOADER_VERSION (linux/$OFFLOADER_ARCH)" | tee -a $LOG_FILE
 fi
 echo "" | tee -a $LOG_FILE
 
@@ -131,10 +132,14 @@ check_internet() {
 }
 
 pull_and_save_images() {
-    echo "Pulling images from Docker Hub..." | tee -a $LOG_FILE
-    [ -n "$CALLS_RECORDER_VERSION" ]    && docker pull mattermost/calls-recorder:$CALLS_RECORDER_VERSION 2>&1 | tee -a $LOG_FILE
-    [ -n "$CALLS_TRANSCRIBER_VERSION" ] && docker pull mattermost/calls-transcriber:$CALLS_TRANSCRIBER_VERSION 2>&1 | tee -a $LOG_FILE
-    docker pull registry:2 2>&1 | tee -a $LOG_FILE
+    echo "Pulling images from Docker Hub (platform: linux/$OFFLOADER_ARCH)..." | tee -a $LOG_FILE
+    if [ -n "$CALLS_RECORDER_VERSION" ]; then
+        docker pull --platform linux/$OFFLOADER_ARCH mattermost/calls-recorder:$CALLS_RECORDER_VERSION 2>&1 | tee -a $LOG_FILE
+    fi
+    if [ -n "$CALLS_TRANSCRIBER_VERSION" ]; then
+        docker pull --platform linux/$OFFLOADER_ARCH mattermost/calls-transcriber:$CALLS_TRANSCRIBER_VERSION 2>&1 | tee -a $LOG_FILE
+    fi
+    docker pull --platform linux/$OFFLOADER_ARCH registry:2 2>&1 | tee -a $LOG_FILE
 
     echo "" | tee -a $LOG_FILE
     echo "Saving images to archives..." | tee -a $LOG_FILE
@@ -193,7 +198,7 @@ set -e
 REGISTRY_HOST="\${REGISTRY_HOST:-$REGISTRY_HOST}"
 REGISTRY_PORT="\${REGISTRY_PORT:-$REGISTRY_PORT}"
 
-echo "Deploying Mattermost Calls in air-gapped environment..."
+echo "Deploying Mattermost Calls Offloader in air-gapped environment..."
 echo "Registry: \$REGISTRY_HOST:\$REGISTRY_PORT"
 echo ""
 EOF
