@@ -203,7 +203,7 @@ Environment=LOGGER_FILELOCATION=/var/log/calls-offloader/calls-offloader.log"
     # daemons may require a higher minimum API version. Detect this now and set
     # DOCKER_API_VERSION so the service starts successfully.
     local docker_min_api
-    docker_min_api=$(docker version 2>&1 | grep -oE 'Minimum supported API version is [0-9]+\.[0-9]+' | grep -oE '[0-9]+\.[0-9]+$' || true)
+    docker_min_api=$(docker version 2>&1 | grep -oE '\(minimum version [0-9]+\.[0-9]+\)' | grep -oE '[0-9]+\.[0-9]+' || true)
     if [ -n "$docker_min_api" ]; then
         echo "  Docker API version mismatch detected: setting DOCKER_API_VERSION=$docker_min_api" | tee -a $LOG_FILE
         env_lines="$env_lines
