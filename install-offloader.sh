@@ -170,6 +170,13 @@ setup_user() {
     echo "  Created log directory /var/log/calls-offloader" | tee -a $LOG_FILE
 }
 
+stop_service_if_running() {
+    if systemctl is-active --quiet calls-offloader 2>/dev/null; then
+        echo "Stopping calls-offloader service..." | tee -a $LOG_FILE
+        systemctl stop calls-offloader
+    fi
+}
+
 install_binary() {
     local src="$1"
     echo "Installing binary to $INSTALL_PATH..." | tee -a $LOG_FILE
@@ -268,6 +275,7 @@ main() {
         binary_src="$BINARY_PATH"
     fi
 
+    stop_service_if_running
     setup_user
     install_binary "$binary_src"
     write_service_file
