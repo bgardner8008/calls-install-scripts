@@ -22,7 +22,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Default values
-DEFAULT_VERSION="v1.2.4"
+DEFAULT_VERSION="v1.2.5"
 INSTALL_DIR="/opt/rtcd"
 RTCD_USER="rtcd"
 RTCD_GROUP="rtcd"
@@ -200,6 +200,7 @@ else
     # Online mode: prompt for version and download
     echo ""
     log_info "Please enter the rtcd version to install"
+    log_info "The default version provided may be out of date"
     read -p "Version (default: ${DEFAULT_VERSION}): " RTCD_VERSION
     RTCD_VERSION=${RTCD_VERSION:-$DEFAULT_VERSION}
 

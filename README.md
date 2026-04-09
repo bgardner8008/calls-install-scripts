@@ -22,6 +22,8 @@ Bash scripts for installing [Mattermost Calls](https://docs.mattermost.com/chann
 
 ### Install rtcd
 
+First check [github rtcd release page](https://github.com/mattermost/rtcd/releases) to find the latest version. The script will suggest a default that may be out of date.
+
 ```bash
 # Online — downloads the binary from GitHub
 sudo ./install-rtcd.sh
@@ -34,9 +36,11 @@ The script creates a `rtcd` system user, installs the binary to `/opt/rtcd/`, wr
 
 ### Install calls-offloader
 
+First check [github offloader release page](https://github.com/mattermost/calls-offloader/releases) to find the latest version. Then see section below on how to find compatible versions of recorder and transcriber. The examples provided below may be using out of date versions.
+
 ```bash
 # Online — downloads the binary from GitHub
-sudo ./install-offloader.sh --version v0.9.4
+sudo ./install-offloader.sh --version v0.9.6
 
 # With a custom image registry (e.g. for air-gapped)
 sudo ./install-offloader.sh --binary ./calls-offloader-linux-amd64 \
@@ -53,9 +57,9 @@ Air-gapped deployment is a two-phase process:
 
 ```bash
 ./setup-airgap-offloader.sh \
-    --recorder v0.8.8 \
-    --transcriber v0.7.1 \
-    --offloader v0.9.4
+    --recorder v0.8.13 \
+    --transcriber v0.7.2 \
+    --offloader v0.9.6
 ```
 
 This pulls Docker images, downloads the offloader binary, saves everything to archives, and generates `deploy-airgap-offloader.sh`.

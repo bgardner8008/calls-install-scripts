@@ -23,7 +23,7 @@ usage() {
     echo "One of --version or --binary is required."
     echo ""
     echo "Options:"
-    echo "  --version VERSION        Download this version from GitHub releases (e.g. v0.9.4)"
+    echo "  --version VERSION        Download this version from GitHub releases (e.g. v0.9.6)"
     echo "  --binary PATH            Use a local binary file (for air-gapped installs)"
     echo "  --arch amd64|arm64       CPU architecture for download (default: auto-detected)"
     echo "  --port PORT              Listening port (default: $DEFAULT_PORT)"
@@ -32,9 +32,11 @@ usage() {
     echo "  --no-self-registration   Disable automatic client self-registration"
     echo ""
     echo "Examples:"
-    echo "  sudo $0 --version v0.9.4"
-    echo "  sudo $0 --version v0.9.4 --image-registry localhost:5000/mattermost"
+    echo "  sudo $0 --version v0.9.6"
+    echo "  sudo $0 --version v0.9.6 --image-registry localhost:5000/mattermost"
     echo "  sudo $0 --binary ./calls-offloader-linux-amd64 --image-registry localhost:5000/mattermost"
+    echo ""
+    echo "Note the version used above is likely out of date, first find the latest version on github"
     exit 1
 }
 
