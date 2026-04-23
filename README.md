@@ -16,7 +16,9 @@ Bash scripts for installing [Mattermost Calls](https://docs.mattermost.com/chann
 - Linux with systemd
 - Root/sudo access
 - `wget` or `curl` (for online installs)
-- Docker (for calls-offloader — it runs recorder/transcriber as containers)
+- **Docker Engine** (Docker CE) for `calls-offloader` — the offloader communicates with the Docker daemon via `/var/run/docker.sock` using the Docker SDK
+
+**Container runtime compatibility:** Only Docker Engine is supported. Podman — including the `podman-docker` CLI shim that ships by default on RHEL, Rocky Linux, AlmaLinux, and CentOS Stream — is **not** compatible. These scripts assume `/etc/docker/daemon.json` for registry configuration (which Podman ignores), and the offloader itself has known incompatibilities with Podman's Docker-API compatibility layer. On RHEL-family systems, remove Podman and install Docker CE from [Docker's official RHEL repository](https://docs.docker.com/engine/install/rhel/) before running these scripts.
 
 ## Quick Start
 
@@ -48,6 +50,14 @@ sudo ./install-offloader.sh --binary ./calls-offloader-linux-amd64 \
 ```
 
 The script creates a `mattermost` system user (added to the `docker` group), installs the binary to `/usr/local/bin/`, configures a systemd service with environment-based settings, and starts the service.
+
+For troubleshooting recording/transcription failures, install with `--output-logs` so the recorder/transcriber container stdout/stderr streams into the offloader's journald output (`JOBS_OUTPUTLOGS=true`):
+
+```bash
+sudo ./install-offloader.sh --version v0.9.6 --output-logs
+```
+
+You can also toggle this after install via `sudo systemctl edit calls-offloader` and adding `Environment=JOBS_OUTPUTLOGS=true` under `[Service]`, then `sudo systemctl restart calls-offloader`.
 
 ### Air-Gapped Deployment
 
@@ -92,10 +102,55 @@ This loads the Docker images, starts a local registry on port 5000, pushes the i
 
 ## Post-Install
 
-After installing, configure the Mattermost Calls plugin to point at the new services:
+After running the install scripts, the services are up and reachable on their ports — but recording and transcription won't actually work until the Mattermost server is configured to reach them and to tell them where it lives.
 
-- **rtcd**: Set the `rtcd service URL` in the Calls plugin settings to `http://<rtcd-host>:8045`
-- **calls-offloader**: Set the `Job service URL` to `http://<offloader-host>:4545`
+### 1. Configure the Calls plugin
+
+In **System Console → Plugins → Calls**:
+
+- **RTCD service URL**: `http://<rtcd-host>:8045`
+- **Job service URL**: `http://<offloader-host>:4545`
+
+### 2. Configure Mattermost server environment variables
+
+Recorder and transcriber run as containers on the offloader host. They need to reach your Mattermost server from *inside* the Docker bridge network, and they need to agree with the offloader on which image registry to use. Set these in your Mattermost server's environment (e.g. `/etc/mattermost.environment` if you use the `EnvironmentFile=` pattern from the official install docs):
+
+| Variable | When to set | Example |
+|----------|-------------|---------|
+| `MM_CALLS_RECORDER_SITE_URL` | Always, if the recorder container can't resolve or reach your public SITE_URL | `http://172.17.0.1:8065` |
+| `MM_CALLS_TRANSCRIBER_SITE_URL` | Always, same reason | `http://172.17.0.1:8065` |
+| `MM_CALLS_JOB_SERVICE_IMAGE_REGISTRY` | Air-gapped installs or any custom registry | `localhost:5000/mattermost` |
+| `MM_CALLS_RECORDER_TLS_CA_CERT_FILE` | Mattermost uses HTTPS with a private/self-signed cert | `/certs/ca.pem` |
+| `MM_CALLS_TRANSCRIBER_TLS_CA_CERT_FILE` | Same | `/certs/ca.pem` |
+
+Restart Mattermost after changing these (`sudo systemctl restart mattermost`).
+
+### 3. Network considerations
+
+The recorder/transcriber containers run on the offloader host and need to reach Mattermost:
+
+- If Mattermost runs on the **same host** as the offloader, the Docker bridge gateway (typically `172.17.0.1:8065`) works — but you may need to ensure Mattermost listens on that interface and that host firewall rules allow traffic from the Docker subnet.
+- If Mattermost runs on a **different host**, use a network-routable hostname/IP that the offloader host can reach, and confirm DNS resolution inside a throwaway container:
+  ```bash
+  docker run --rm curlimages/curl curl -sv http://<url-you-plan-to-use>/api/v4/system/ping
+  ```
+- If Mattermost is behind an **HTTPS reverse proxy with a public cert**, the default public SITE_URL usually works and no override is needed.
+- If the public SITE_URL uses a **private/self-signed cert**, mount the CA bundle via `JOBS_DOCKER_CERT_PATH` on the offloader (see calls-offloader docs) **and** set the `MM_CALLS_*_TLS_CA_CERT_FILE` env vars above.
+
+### 4. Verify
+
+```bash
+# rtcd
+curl http://localhost:8045/version
+
+# calls-offloader
+curl http://localhost:4545/version
+
+# From Mattermost server, confirm it can reach offloader
+curl http://<offloader-host>:4545/version
+```
+
+Then start a call and press Record. If it fails with `Job service is not initialized`, check the Mattermost server logs for `failed to initialize job service` — the message there tells you which env var is wrong.
 
 ### Useful Commands
 

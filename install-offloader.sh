@@ -30,6 +30,9 @@ usage() {
     echo "  --image-registry VALUE   Docker image registry prefix (e.g. localhost:5000/mattermost)"
     echo "                           Required for air-gapped deployments"
     echo "  --no-self-registration   Disable automatic client self-registration"
+    echo "  --output-logs            Stream recorder/transcriber container stdout/stderr into the"
+    echo "                           offloader's journald output. Useful for diagnosing job"
+    echo "                           failures. Off by default."
     echo ""
     echo "Examples:"
     echo "  sudo $0 --version v0.9.6"
@@ -46,6 +49,7 @@ ARCH=""
 PORT="$DEFAULT_PORT"
 IMAGE_REGISTRY=""
 SELF_REGISTRATION="true"
+OUTPUT_LOGS="false"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -66,6 +70,8 @@ while [[ $# -gt 0 ]]; do
             IMAGE_REGISTRY="$2"; shift 2 ;;
         --no-self-registration)
             SELF_REGISTRATION="false"; shift ;;
+        --output-logs)
+            OUTPUT_LOGS="true"; shift ;;
         --help|-h) usage ;;
         *) echo "ERROR: Unknown argument: $1"; echo ""; usage ;;
     esac
@@ -123,6 +129,9 @@ fi
 echo "  Port:           $PORT" | tee -a $LOG_FILE
 if [ -n "$IMAGE_REGISTRY" ]; then
     echo "  Image registry: $IMAGE_REGISTRY" | tee -a $LOG_FILE
+fi
+if [ "$OUTPUT_LOGS" = "true" ]; then
+    echo "  Output logs:    enabled (JOBS_OUTPUTLOGS=true)" | tee -a $LOG_FILE
 fi
 echo "" | tee -a $LOG_FILE
 
@@ -201,6 +210,10 @@ Environment=API_HTTP_LISTENADDRESS=:$PORT"
     if [ -n "$IMAGE_REGISTRY" ]; then
         env_lines="$env_lines
 Environment=JOBS_IMAGEREGISTRY=$IMAGE_REGISTRY"
+    fi
+    if [ "$OUTPUT_LOGS" = "true" ]; then
+        env_lines="$env_lines
+Environment=JOBS_OUTPUTLOGS=true"
     fi
 
     # Set absolute log path — the default is relative and the service user can't
